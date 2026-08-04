@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Itah Admin — Absolute Control</title>
+  <style>
+    :root {
+      --bg: #0c1014;
+      --panel: #151c24;
+      --text: #e8eef4;
+      --muted: #8b9aab;
+      --accent: #3d9a7a;
+      --warn: #c9a227;
+      --danger: #c45c5c;
+      --border: #2a3542;
+      --font: "IBM Plex Sans", "Segoe UI", sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background:
+        radial-gradient(1000px 500px at 0% -10%, #1a332c 0%, transparent 50%),
+        radial-gradient(800px 400px at 100% 0%, #1e2a3a 0%, transparent 45%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    main { max-width: 1100px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    h1 { font-size: 1.65rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+    .sub { color: var(--muted); margin: 0 0 1.5rem; }
+    .sub a { color: var(--accent); }
+    nav.jump {
+      display: flex; flex-wrap: wrap; gap: 0.65rem;
+      margin-bottom: 1.5rem;
+    }
+    nav.jump a {
+      color: var(--muted); text-decoration: none; font-size: 0.85rem;
+      border: 1px solid var(--border); border-radius: 999px; padding: 0.25rem 0.7rem;
+    }
+    nav.jump a:hover { color: var(--accent); border-color: var(--accent); }
+    section {
+      background: color-mix(in srgb, var(--panel) 90%, transparent);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.15rem 1.25rem;
+      margin-bottom: 1.1rem;
+      scroll-margin-top: 1rem;
+    }
+    h2 {
+      font-size: 0.85rem; margin: 0 0 0.9rem;
+      text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted);
+    }
+    h3 { font-size: 1rem; margin: 1rem 0 0.5rem; color: var(--text); }
+    .row { display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: flex-end; }
+    .row.tight { align-items: center; }
+    label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.8rem; color: var(--muted); }
+    input, select {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      border-radius: 6px; padding: 0.45rem 0.6rem; font: inherit; min-width: 140px;
+    }
+    button, .btn {
+      border: 0; border-radius: 6px; padding: 0.45rem 0.85rem; font: inherit;
+      cursor: pointer; background: var(--accent); color: #04140f; font-weight: 600;
+      font-size: 0.85rem;
+    }
+    button.danger, .btn.danger { background: var(--danger); color: #fff; }
+    button.warn, .btn.warn { background: var(--warn); color: #1a1400; }
+    button.ghost, .btn.ghost {
+      background: transparent; color: var(--muted); border: 1px solid var(--border);
+    }
+    button.small, .btn.small { padding: 0.25rem 0.55rem; font-size: 0.75rem; }
+    .pill {
+      display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px;
+      font-size: 0.75rem; font-family: var(--mono);
+    }
+    .on { background: color-mix(in srgb, var(--accent) 28%, transparent); color: #9ee0c5; }
+    .off { background: color-mix(in srgb, var(--danger) 22%, transparent); color: #f0b0b0; }
+    .flash {
+      background: #1e2e24; border: 1px solid var(--accent);
+      padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem;
+      font-family: var(--mono); word-break: break-all; font-size: 0.9rem;
+    }
+    .error {
+      background: #2a1818; border: 1px solid var(--danger); color: #f0b0b0;
+      padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { text-align: left; padding: 0.45rem 0.35rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    th { color: var(--muted); font-weight: 500; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    td.actions { white-space: nowrap; }
+    td.actions form { display: inline-block; margin: 0 0.15rem 0.15rem 0; }
+    .mono { font-family: var(--mono); font-size: 0.82rem; }
+    .muted { color: var(--muted); }
+    .customer-card {
+      border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem;
+      margin-top: 0.75rem; background: color-mix(in srgb, var(--bg) 55%, transparent);
+    }
+    .customer-card header {
+      display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+      justify-content: space-between; margin-bottom: 0.5rem;
+    }
+    .scope-list { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.35rem 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Itah Admin</h1>
+    <p class="sub">
+      Absolute control of capacity, customers, portal logins, API keys, and scopes.
+      Portal: <a href="{{ portal_url }}" target="_blank" rel="noreferrer">{{ portal_url }}</a>
+    </p>
+
+    <nav class="jump">
+      <a href="#capacity">Capacity</a>
+      <a href="#customers">Customers</a>
+      <a href="#invites">Invites</a>
+      <a href="#portal-users">Portal users</a>
+      <a href="#api-keys">API keys</a>
+      <a href="#entitlements">Entitlements</a>
+      <a href="#create">Create</a>
+    </nav>
+
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    {% if flash %}<div class="flash">{{ flash }}</div>{% endif %}
+    {% if created_key %}<div class="flash">New API key (shown once): {{ created_key }}</div>{% endif %}
+    {% if created_portal_user %}<div class="flash">Portal user ready: {{ created_portal_user }} (password not shown again)</div>{% endif %}
+    {% if created_invite_url %}
+    <div class="flash">
+      Invite for {{ created_invite_email }} (24h, shown once):
+      <br /><a href="{{ created_invite_url }}" target="_blank" rel="noreferrer">{{ created_invite_url }}</a>
+      {% if invite_email_sent %}
+      <br /><span class="muted">Email sent via SES.</span>
+      {% elif invite_email_error %}
+      <br /><span class="muted">Email send failed — copy the link above. ({{ invite_email_error }})</span>
+      {% else %}
+      <br /><span class="muted">SES not configured (INVITE_FROM_EMAIL) — copy and send the link manually.</span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <section id="capacity">
+      <h2>Capacity (Spark / GPU)</h2>
+      <p>
+        {% if status.online %}
+        <span class="pill on">ONLINE</span>
+        {% else %}
+        <span class="pill off">OFFLINE</span>
+        {% endif %}
+        <span class="muted" style="margin-left: 0.6rem; font-size: 0.85rem;">
+          updated {{ status.updated_at or "—" }}
+          {% if status.origin_base_url %} · origin <span class="mono">{{ status.origin_base_url }}</span>{% endif %}
+        </span>
+      </p>
+      <div class="row" style="margin-top: 0.85rem;">
+        <form method="post" action="/admin/spark/online" class="row">
+          <label>Origin base URL
+            <input name="origin_base_url" style="min-width: 280px;"
+              placeholder="https://spark-origin.matanitah.com"
+              value="{{ status.origin_base_url or 'https://spark-origin.matanitah.com' }}" />
+          </label>
+          <button type="submit">Go online</button>
+        </form>
+        <form method="post" action="/admin/spark/offline">
+          <button type="submit" class="danger">Go offline (kill customer traffic)</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="customers">
+      <h2>Customers &amp; per-customer control</h2>
+      {% for cid, bundle in by_customer.items() %}
+      {% set c = bundle.customer %}
+      <div class="customer-card">
+        <header>
+          <div>
+            <strong class="mono">{{ c.customer_id }}</strong>
+            — {{ c.name or "?" }}
+            {% if c.enabled %}<span class="pill on">enabled</span>{% else %}<span class="pill off">disabled</span>{% endif %}
+          </div>
+          <div class="row tight">
+            {% if c.enabled %}
+            <form method="post" action="/admin/customers/disable">
+              <input type="hidden" name="customer_id" value="{{ c.customer_id }}" />
+              <button type="submit" class="warn small">Disable</button>
+            </form>
+            {% else %}
+            <form method="post" action="/admin/customers/enable">
+              <input type="hidden" name="customer_id" value="{{ c.customer_id }}" />
+              <button type="submit" class="small">Enable</button>
+            </form>
+            {% endif %}
+            <form method="post" action="/admin/customers/grant-all">
+              <input type="hidden" name="customer_id" value="{{ c.customer_id }}" />
+              <button type="submit" class="ghost small">Grant all scopes</button>
+            </form>
+            <form method="post" action="/admin/customers/revoke-all">
+              <input type="hidden" name="customer_id" value="{{ c.customer_id }}" />
+              <button type="submit" class="ghost small">Revoke all scopes</button>
+            </form>
+            <form method="post" action="/admin/customers/delete"
+              onsubmit="return confirm('Delete customer {{ c.customer_id }} and ALL related users, keys, and scopes?');">
+              <input type="hidden" name="customer_id" value="{{ c.customer_id }}" />
+              <input type="hidden" name="cascade" value="true" />
+              <button type="submit" class="danger small">Delete cascade</button>
+            </form>
+          </div>
+        </header>
+        <div class="scope-list">
+          {% for e in bundle.entitlements %}
+          <span class="pill {% if e.enabled %}on{% else %}off{% endif %}">{{ e.scope }}</span>
+          {% else %}
+          <span class="muted">No scopes</span>
+          {% endfor %}
+        </div>
+        <p class="muted" style="margin: 0.35rem 0; font-size: 0.8rem;">
+          Portal users: {{ bundle.portal_users|length }} · API keys: {{ bundle.api_keys|length }}
+        </p>
+      </div>
+      {% else %}
+      <p class="muted">No customers yet.</p>
+      {% endfor %}
+    </section>
+
+    <section id="invites">
+      <h2>Portal invites (24h signup links)</h2>
+      <p class="muted" style="margin-top: 0; font-size: 0.85rem;">
+        Enter an email + customer. They open the link and choose username/password.
+        Prior pending invites for the same email are revoked.
+      </p>
+      <form method="post" action="/admin/invites" class="row" style="margin-bottom: 1rem;">
+        <label>Email <input name="email" type="email" required placeholder="user@company.com" /></label>
+        <label>Customer ID <input name="customer_id" required placeholder="acme" /></label>
+        <button type="submit">Send invite</button>
+      </form>
+      <table>
+        <thead>
+          <tr><th>Email</th><th>Customer</th><th>Status</th><th>Expires</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for inv in portal_invites %}
+          <tr>
+            <td class="mono">{{ inv.email }}</td>
+            <td class="mono">{{ inv.customer_id }}</td>
+            <td>
+              {% if inv.status == "pending" %}<span class="pill on">pending</span>
+              {% elif inv.status == "used" %}<span class="pill">used</span>
+              {% else %}<span class="pill off">{{ inv.status }}</span>{% endif %}
+              {% if inv.email_sent %}<span class="muted"> · emailed</span>{% endif %}
+            </td>
+            <td class="muted">{{ inv.expires_at or "—" }}</td>
+            <td class="actions">
+              {% if inv.status == "pending" %}
+              <form method="post" action="/admin/invites/revoke">
+                <input type="hidden" name="token_hash" value="{{ inv.token_hash }}" />
+                <button type="submit" class="warn small">Revoke</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="muted">No invites yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section id="portal-users">
+      <h2>Portal users (username / password)</h2>
+      <table>
+        <thead>
+          <tr><th>Username</th><th>Customer</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for u in portal_users %}
+          <tr>
+            <td class="mono">{{ u.username }}</td>
+            <td class="mono">{{ u.customer_id }}</td>
+            <td>{% if u.enabled %}<span class="pill on">enabled</span>{% else %}<span class="pill off">disabled</span>{% endif %}</td>
+            <td class="muted">{{ u.created_at or "—" }}</td>
+            <td class="actions">
+              {% if u.enabled %}
+              <form method="post" action="/admin/portal-users/disable">
+                <input type="hidden" name="username" value="{{ u.username }}" />
+                <button type="submit" class="warn small">Disable</button>
+              </form>
+              {% else %}
+              <form method="post" action="/admin/portal-users/enable">
+                <input type="hidden" name="username" value="{{ u.username }}" />
+                <button type="submit" class="small">Enable</button>
+              </form>
+              {% endif %}
+              <form method="post" action="/admin/portal-users/delete"
+                onsubmit="return confirm('Delete portal user {{ u.username }}?');">
+                <input type="hidden" name="username" value="{{ u.username }}" />
+                <button type="submit" class="danger small">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="muted">No portal users.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <h3>Reassign user → customer</h3>
+      <form method="post" action="/admin/portal-users/reassign" class="row">
+        <label>Username <input name="username" required /></label>
+        <label>New customer ID <input name="customer_id" required /></label>
+        <button type="submit">Reassign</button>
+      </form>
+    </section>
+
+    <section id="api-keys">
+      <h2>API keys (programmatic)</h2>
+      <table>
+        <thead>
+          <tr><th>Prefix</th><th>Customer</th><th>Label</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for k in api_keys %}
+          <tr>
+            <td class="mono">{{ k.key_prefix }}…</td>
+            <td class="mono">{{ k.customer_id }}</td>
+            <td>{{ k.label }}</td>
+            <td>{% if k.enabled %}<span class="pill on">enabled</span>{% else %}<span class="pill off">disabled</span>{% endif %}</td>
+            <td class="muted">{{ k.created_at or "—" }}</td>
+            <td class="actions">
+              {% if k.enabled %}
+              <form method="post" action="/admin/keys/disable">
+                <input type="hidden" name="key_hash" value="{{ k.key_hash }}" />
+                <button type="submit" class="warn small">Disable</button>
+              </form>
+              {% else %}
+              <form method="post" action="/admin/keys/enable">
+                <input type="hidden" name="key_hash" value="{{ k.key_hash }}" />
+                <button type="submit" class="small">Enable</button>
+              </form>
+              {% endif %}
+              <form method="post" action="/admin/keys/delete"
+                onsubmit="return confirm('Permanently delete key {{ k.key_prefix }}…?');">
+                <input type="hidden" name="key_hash" value="{{ k.key_hash }}" />
+                <button type="submit" class="danger small">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="muted">No API keys.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section id="entitlements">
+      <h2>All entitlements</h2>
+      <table>
+        <thead>
+          <tr><th>Customer</th><th>Scope</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for e in entitlements %}
+          <tr>
+            <td class="mono">{{ e.customer_id }}</td>
+            <td class="mono">{{ e.scope }}</td>
+            <td>{% if e.enabled %}<span class="pill on">on</span>{% else %}<span class="pill off">off</span>{% endif %}</td>
+            <td class="actions">
+              <form method="post" action="/admin/entitlements">
+                <input type="hidden" name="customer_id" value="{{ e.customer_id }}" />
+                <input type="hidden" name="scope" value="{{ e.scope }}" />
+                <input type="hidden" name="enabled" value="{% if e.enabled %}false{% else %}true{% endif %}" />
+                <button type="submit" class="ghost small">{% if e.enabled %}Turn off{% else %}Turn on{% endif %}</button>
+              </form>
+              <form method="post" action="/admin/entitlements/delete">
+                <input type="hidden" name="customer_id" value="{{ e.customer_id }}" />
+                <input type="hidden" name="scope" value="{{ e.scope }}" />
+                <button type="submit" class="danger small">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="muted">No entitlements.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section id="create">
+      <h2>Create / reset</h2>
+
+      <h3>Customer</h3>
+      <form method="post" action="/admin/customers" class="row" style="margin-bottom: 1.25rem;">
+        <label>Customer ID <input name="customer_id" required placeholder="acme" /></label>
+        <label>Name <input name="name" required placeholder="Acme Health" /></label>
+        <label>Enabled
+          <select name="enabled">
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <button type="submit">Create / update</button>
+      </form>
+
+      <h3>Entitlement</h3>
+      <form method="post" action="/admin/entitlements" class="row" style="margin-bottom: 1.25rem;">
+        <label>Customer ID <input name="customer_id" required /></label>
+        <label>Scope
+          <select name="scope">
+            {% for s in scopes %}
+            <option value="{{ s }}">{{ s }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Enabled
+          <select name="enabled">
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <button type="submit">Set scope</button>
+      </form>
+
+      <h3>API key</h3>
+      <form method="post" action="/admin/keys" class="row" style="margin-bottom: 1.25rem;">
+        <label>Customer ID <input name="customer_id" required /></label>
+        <label>Label <input name="label" placeholder="prod" /></label>
+        <button type="submit">Mint key</button>
+      </form>
+
+      <h3>Portal invite (email → 24h signup link)</h3>
+      <form method="post" action="/admin/invites" class="row" style="margin-bottom: 1.25rem;">
+        <label>Email <input name="email" type="email" required placeholder="user@company.com" /></label>
+        <label>Customer ID <input name="customer_id" required placeholder="acme" /></label>
+        <button type="submit">Create invite</button>
+      </form>
+
+      <h3>Portal user (create or reset password)</h3>
+      <form method="post" action="/admin/portal-users" class="row">
+        <label>Username <input name="username" required placeholder="admin" /></label>
+        <label>Customer ID <input name="customer_id" required placeholder="admin" /></label>
+        <label>Password <input name="password" type="password" required /></label>
+        <label>Enabled
+          <select name="enabled">
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <button type="submit">Create / reset password</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

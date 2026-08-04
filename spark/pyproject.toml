@@ -1,0 +1,38 @@
+[project]
+name = "spark-gateway"
+version = "0.1.0"
+description = "DGX Spark data-plane gateway: Ollama (gpt-oss:20b), Docling, and admin dashboard"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "argon2-cffi>=25.1.0",
+    "boto3>=1.43.64",
+    "fastapi>=0.141.1",
+    "httpx>=0.28.1",
+    "jinja2>=3.1.6",
+    "pydantic-settings>=2.14.2",
+    "python-multipart>=0.0.32",
+    "uvicorn[standard]>=0.52.1",
+]
+
+[project.scripts]
+spark-gateway = "spark_gateway.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/spark_gateway"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/spark_gateway/templates" = "spark_gateway/templates"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

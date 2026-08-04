@@ -1,0 +1,6 @@
+aws_region            = "us-east-1"
+environment           = "prod"
+project_name          = "itah"
+spark_origin_base_url = "https://spark-origin.example.com"
+edge_shared_token     = "replace-me-with-a-long-random-secret"
+portal_shared_token   = "replace-me-with-portal-bff-shared-secret"
