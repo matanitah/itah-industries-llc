@@ -1,0 +1,19 @@
+[project]
+name = "animal-rights-watch"
+version = "0.1.0"
+description = "Long-running web-crawling agent tracking systemic animal-rights violations and 50-state animal-rights case law"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "agent-spark-core",
+]
+
+[tool.uv.sources]
+agent-spark-core = { path = "../../core", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent_def"]

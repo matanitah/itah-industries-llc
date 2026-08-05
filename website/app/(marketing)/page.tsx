@@ -96,10 +96,6 @@ export default function MarketingHome() {
             ))}
           </div>
         </section>
-
-        <footer className={styles.footer}>
-          <span>Itah Industries LLC</span>
-        </footer>
       </main>
     </div>
   );

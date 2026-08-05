@@ -16,7 +16,8 @@ function portalPaths(pathname: string): boolean {
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/llm") ||
     pathname.startsWith("/api/docling") ||
-    pathname.startsWith("/api/health")
+    pathname.startsWith("/api/health") ||
+    pathname.startsWith("/api/agents")
   );
 }
 
@@ -53,7 +54,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/app") ||
     pathname.startsWith("/api/llm") ||
     pathname.startsWith("/api/docling") ||
-    pathname.startsWith("/api/health");
+    pathname.startsWith("/api/health") ||
+    pathname.startsWith("/api/agents");
 
   if (!needsAuth) {
     return NextResponse.next();
@@ -97,6 +99,7 @@ export const config = {
     "/api/llm/:path*",
     "/api/docling/:path*",
     "/api/health",
+    "/api/agents/:path*",
     "/((?!_next/static|_next/image|.*\\..*).*)",
   ],
 };

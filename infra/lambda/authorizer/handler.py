@@ -22,6 +22,18 @@ ROUTE_SCOPES = {
     "POST /v1/docling/convert": "docling:convert",
 }
 
+# Agent-spark routes don't use the scope/entitlement DynamoDB table above --
+# entitlement for these is a separate concept (which agent-spark agent a
+# customer may open, see customer_agents table) checked by spark-gateway
+# itself (services/control_plane.customer_has_agent), not by this
+# authorizer. This authorizer's job for these routes is only to confirm the
+# request is a legitimate portal-BFF or API-key call for *some* known
+# customer and that Spark is online -- so they need a route match here, but
+# map to a scope that's a pure passthrough (always granted once the caller
+# is authenticated), not a real per-customer DynamoDB entitlement lookup.
+def _is_agent_route(route_key: str) -> bool:
+    return route_key.endswith("/v1/agents") or "/v1/agents/" in route_key
+
 
 def _header(headers: dict[str, str], name: str) -> str:
     lower = {k.lower(): v for k, v in headers.items()}
@@ -53,20 +65,35 @@ def _allow(customer_id: str, scope: str) -> dict[str, Any]:
     }
 
 
-def _resolve_scope(event: dict[str, Any]) -> str | None:
+def _route_key(event: dict[str, Any]) -> str:
     route_key = event.get("routeKey") or ""
+    if route_key and route_key != "$default":
+        return route_key
+    method = (event.get("requestContext") or {}).get("http", {}).get("method", "")
+    path = (event.get("requestContext") or {}).get("http", {}).get("path", "")
+    return f"{method} {path}"
+
+
+def _resolve_scope(event: dict[str, Any]) -> str | None:
+    route_key = _route_key(event)
     scope = ROUTE_SCOPES.get(route_key)
     if scope:
         return scope
-    method = (event.get("requestContext") or {}).get("http", {}).get("method", "")
-    path = (event.get("requestContext") or {}).get("http", {}).get("path", "")
-    return ROUTE_SCOPES.get(f"{method} {path}")
+    if _is_agent_route(route_key):
+        return "agent:access"  # sentinel: authenticate + spark-online only, see _is_agent_route
+    return None
 
 
 def _check_customer_and_scope(customer_id: str, scope: str) -> dict[str, Any] | None:
     customer = customers.get_item(Key={"customer_id": customer_id}).get("Item")
     if not customer or not customer.get("enabled"):
         return _deny("customer_disabled")
+    if scope == "agent:access":
+        # Agent-spark entitlement is per-agent-slug (customer_agents table),
+        # not a generic scope -- spark-gateway checks it itself
+        # (control_plane.customer_has_agent) once the request reaches it.
+        # This authorizer only needs to confirm the customer is real/enabled.
+        return None
     entitlement = entitlements.get_item(
         Key={"customer_id": customer_id, "scope": scope}
     ).get("Item")

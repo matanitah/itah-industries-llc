@@ -21,6 +21,13 @@ class EdgeTokenMiddleware(BaseHTTPMiddleware):
         if not self._token or path.startswith("/admin") or path in {"/docs", "/openapi.json", "/redoc"}:
             return await call_next(request)
 
+        # Direct tunnel path for the agent-dashboard iframe (see
+        # routes/agents.py) -- reached straight over the tunnel hostname
+        # rather than through API Gateway, so it never carries the edge
+        # token; it has its own short-lived signed-token check instead.
+        if path.startswith("/agents/"):
+            return await call_next(request)
+
         if path.startswith("/v1"):
             provided = request.headers.get("x-itah-edge-token", "")
             if provided != self._token:

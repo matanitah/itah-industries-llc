@@ -5,7 +5,8 @@ from fastapi.staticfiles import StaticFiles
 
 from spark_gateway.config import Settings, get_settings
 from spark_gateway.middleware import EdgeTokenMiddleware
-from spark_gateway.routes import admin, docling, health, llm
+from spark_gateway.routes import admin, agents, docling, health, llm
+from spark_gateway.services.agents import AgentRegistry
 from spark_gateway.services.control_plane import ControlPlane
 from spark_gateway.services.docling import DoclingService
 from spark_gateway.services.ollama import OllamaService
@@ -18,6 +19,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.ollama = OllamaService(settings)
     app.state.docling = DoclingService(settings)
     app.state.control_plane = ControlPlane(settings)
+    app.state.agents = AgentRegistry(settings)
 
     app.add_middleware(EdgeTokenMiddleware, settings=settings)
 
@@ -25,6 +27,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(llm.router)
     app.include_router(docling.router)
     app.include_router(admin.router)
+    app.include_router(agents.router)
 
     static_dir = Path(__file__).resolve().parent / "static"
     if static_dir.exists():

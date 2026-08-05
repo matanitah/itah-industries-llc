@@ -5,7 +5,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from spark_gateway.services.control_plane import SCOPES, ControlPlane
+from spark_gateway.services.control_plane import AGENT_SLUGS, SCOPES, ControlPlane
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -41,8 +41,10 @@ def _admin_context(
         "api_keys": [],
         "portal_users": [],
         "portal_invites": [],
+        "customer_agents": [],
         "by_customer": {},
         "scopes": SCOPES,
+        "agent_slugs": AGENT_SLUGS,
     }
     try:
         snapshot = cp.dashboard_snapshot()
@@ -193,6 +195,37 @@ async def delete_entitlement(
     scope: str = Form(...),
 ) -> RedirectResponse:
     _control_plane(request).delete_entitlement(customer_id, scope)
+    return _redirect()
+
+
+# --- Agent-spark agent entitlements --------------------------------------
+
+
+@router.post("/agents")
+async def set_customer_agent(
+    request: Request,
+    customer_id: str = Form(...),
+    agent_slug: str = Form(...),
+    enabled: str = Form("true"),
+) -> HTMLResponse:
+    try:
+        _control_plane(request).set_customer_agent(
+            customer_id=customer_id.strip(),
+            agent_slug=agent_slug.strip(),
+            enabled=_truthy(enabled),
+        )
+    except Exception as exc:  # noqa: BLE001
+        return _render(request, error=str(exc), status_code=400)
+    return _redirect()
+
+
+@router.post("/agents/delete")
+async def delete_customer_agent(
+    request: Request,
+    customer_id: str = Form(...),
+    agent_slug: str = Form(...),
+) -> RedirectResponse:
+    _control_plane(request).delete_customer_agent(customer_id, agent_slug)
     return _redirect()
 
 

@@ -1,0 +1,14 @@
+# Copy to agent.yaml (gitignored) and fill in the real wiki repo URL.
+#
+# There is exactly one shared instance of this agent, used by every customer
+# entitled to it via the portal's customer_agents entitlement (see
+# agent-spark/core/README.md's "Shared state across customers"). This file
+# just points that one instance at its pre-provisioned GitHub repo under the
+# itah-industries-wikis org.
+#
+# Must be an https://github.com/... URL, not git@github.com:... -- the
+# fine-grained GitHub PAT (AGENT_SPARK_GITHUB_TOKEN) only authenticates over
+# HTTPS. See agent_spark_core/wiki_git.py's module docstring.
+
+wiki_repo_url: https://github.com/itah-industries-wikis/wiki-animal-rights-watch.git
+port: 8611

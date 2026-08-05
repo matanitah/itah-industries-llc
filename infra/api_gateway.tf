@@ -57,6 +57,31 @@ locals {
       uri       = "${local.origin}/v1/docling/convert"
       method    = "POST"
     }
+    agents_list = {
+      route_key = "GET /v1/agents"
+      uri       = "${local.origin}/v1/agents"
+      method    = "GET"
+    }
+    agents_status = {
+      route_key = "GET /v1/agents/{agent_slug}/status"
+      uri       = "${local.origin}/v1/agents/{agent_slug}/status"
+      method    = "GET"
+    }
+    agents_start = {
+      route_key = "POST /v1/agents/{agent_slug}/start"
+      uri       = "${local.origin}/v1/agents/{agent_slug}/start"
+      method    = "POST"
+    }
+    agents_stop = {
+      route_key = "POST /v1/agents/{agent_slug}/stop"
+      uri       = "${local.origin}/v1/agents/{agent_slug}/stop"
+      method    = "POST"
+    }
+    agents_dashboard_url = {
+      route_key = "POST /v1/agents/{agent_slug}/dashboard-url"
+      uri       = "${local.origin}/v1/agents/{agent_slug}/dashboard-url"
+      method    = "POST"
+    }
   }
 }
 
