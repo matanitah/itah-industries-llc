@@ -120,6 +120,7 @@
       <a href="#portal-users">Portal users</a>
       <a href="#api-keys">API keys</a>
       <a href="#entitlements">Entitlements</a>
+      <a href="#agents">Agents</a>
       <a href="#create">Create</a>
     </nav>
 
@@ -213,6 +214,13 @@
           <span class="pill {% if e.enabled %}on{% else %}off{% endif %}">{{ e.scope }}</span>
           {% else %}
           <span class="muted">No scopes</span>
+          {% endfor %}
+        </div>
+        <div class="scope-list">
+          {% for a in bundle.agents %}
+          <span class="pill {% if a.enabled %}on{% else %}off{% endif %}">🤖 {{ a.agent_slug }}</span>
+          {% else %}
+          <span class="muted">No agents</span>
           {% endfor %}
         </div>
         <p class="muted" style="margin: 0.35rem 0; font-size: 0.8rem;">
@@ -385,6 +393,45 @@
       </table>
     </section>
 
+    <section id="agents">
+      <h2>All agent entitlements (agent-spark)</h2>
+      <p class="muted" style="margin-top: 0; font-size: 0.85rem;">
+        Which <span class="mono">agent-spark/agents/*</span> dashboards a customer may open/start/stop in the
+        portal. Each agent runs one shared instance used by every entitled customer (same data, same
+        Start/Stop) -- its wiki repo/port are declared once in that agent's own
+        <span class="mono">agent.yaml</span> on this box, not per customer.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Customer</th><th>Agent</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for a in customer_agents %}
+          <tr>
+            <td class="mono">{{ a.customer_id }}</td>
+            <td class="mono">{{ a.agent_slug }}</td>
+            <td>{% if a.enabled %}<span class="pill on">on</span>{% else %}<span class="pill off">off</span>{% endif %}</td>
+            <td class="actions">
+              <form method="post" action="/admin/agents">
+                <input type="hidden" name="customer_id" value="{{ a.customer_id }}" />
+                <input type="hidden" name="agent_slug" value="{{ a.agent_slug }}" />
+                <input type="hidden" name="enabled" value="{% if a.enabled %}false{% else %}true{% endif %}" />
+                <button type="submit" class="ghost small">{% if a.enabled %}Turn off{% else %}Turn on{% endif %}</button>
+              </form>
+              <form method="post" action="/admin/agents/delete">
+                <input type="hidden" name="customer_id" value="{{ a.customer_id }}" />
+                <input type="hidden" name="agent_slug" value="{{ a.agent_slug }}" />
+                <button type="submit" class="danger small">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="muted">No agent entitlements.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
     <section id="create">
       <h2>Create / reset</h2>
 
@@ -418,6 +465,25 @@
           </select>
         </label>
         <button type="submit">Set scope</button>
+      </form>
+
+      <h3>Agent entitlement (agent-spark)</h3>
+      <form method="post" action="/admin/agents" class="row" style="margin-bottom: 1.25rem;">
+        <label>Customer ID <input name="customer_id" required /></label>
+        <label>Agent
+          <select name="agent_slug">
+            {% for slug in agent_slugs %}
+            <option value="{{ slug }}">{{ slug }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Enabled
+          <select name="enabled">
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <button type="submit">Grant agent</button>
       </form>
 
       <h3>API key</h3>

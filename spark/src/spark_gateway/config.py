@@ -26,6 +26,24 @@ class Settings(BaseSettings):
     dynamodb_spark_status_table: str = "itah-spark-status"
     dynamodb_portal_users_table: str = "itah-portal-users"
     dynamodb_portal_invites_table: str = "itah-portal-invites"
+    dynamodb_customer_agents_table: str = "itah-customer-agents"
+
+    # Root of the agent-spark checkout on this box (agents/<slug>/dashboard.py etc).
+    # Defaults to the sibling `agent-spark/` directory in this same repo checkout.
+    agent_spark_root: str = ""
+    # Signs short-lived tokens for the agent-dashboard iframe (see routes/agents.py).
+    # Falls back to edge_shared_token if unset so a fresh checkout works without
+    # yet another secret to generate, but a dedicated value is recommended.
+    agent_dashboard_token_secret: str = ""
+    # Fine-grained GitHub PAT (Contents: Read and write, scoped to the
+    # itah-industries-wikis org only) used by agent-spark's wiki_git.py to
+    # push each agent's shared wiki. Read here (not just left for a human's
+    # shell to export) because spark-gateway is what actually launches the
+    # crawl-loop subprocess (see services/agents.py's AgentRegistry.start),
+    # and a subprocess only inherits what its *launching process's* OS
+    # environment has -- not whatever this .env file populated into pydantic
+    # Settings -- unless we explicitly pass it through.
+    agent_spark_github_token: str = ""
 
     # Public portal base used in invite links (no trailing slash).
     portal_public_base_url: str = "https://spark-origin.matanitah.com"

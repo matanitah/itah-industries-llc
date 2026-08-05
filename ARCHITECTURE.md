@@ -129,6 +129,53 @@ Docling and health follow the same pattern with different scopes (`docling:conve
 
 ---
 
+## 4b. Agent-spark agents (long-running crawl agent + Streamlit dashboard)
+
+`agent-spark/` hosts long-running research agents (e.g. `cigna-mtsinai-negotiation`,
+`animal-rights-watch`): each crawls the web on a schedule, extracts facts via a
+local LLM, scores/ranks entities, and maintains a markdown wiki — controlled
+through a Streamlit dashboard. See `agent-spark/README.md` and
+`agent-spark/core/README.md` for the full pattern.
+
+**Shared instance, per-customer entitlement.** Each agent runs exactly **one**
+process/DB/wiki, shared by every customer entitled to it — not one per
+customer. If customer A and customer B are both entitled to
+`cigna-mtsinai-negotiation`, they see the same dashboard, the same crawl
+progress, the same wiki, and the same Start/Stop control (stopping it stops
+it for both). What's per-customer is the *entitlement* — whether a given
+customer may open/start/stop a given agent at all — tracked in DynamoDB's
+`customer_agents` table, not the underlying data.
+
+Two request paths, because Streamlit's live UI depends on a WebSocket and
+API Gateway's HTTP API can't proxy WebSocket frames end to end:
+
+```text
+Start/stop + entitlement check (through API Gateway, like /v1/llm):
+  Portal  /app/agents/[slug]  → BFF /api/agents/[slug]/start
+    → edgeFetch (portal token + customer id) → API Gateway → spark-gateway
+    → /v1/agents/{slug}/start → customer_agents entitlement check
+    → agent_spark_core.procmgr.start(...) on the agent's one shared instance
+
+Dashboard iframe (direct tunnel, bypasses API Gateway for the WebSocket):
+  Portal  /app/agents/[slug]  → BFF /api/agents/[slug]/dashboard-url
+    → spark-gateway /v1/agents/{slug}/dashboard-url (entitlement-checked)
+    → ensures the agent's one shared Streamlit process is running on its
+      declared port, mints a short-lived signed token, returns a tunnel-
+      hostname URL
+  Browser <iframe src="https://spark-origin.../agents/{slug}/?t=<token>">
+    → Cloudflare Tunnel → spark-gateway re-checks the entitlement live (not
+      just the token's validity, so a revoked entitlement takes effect
+      immediately) → reverse-proxies HTTP *and* WebSocket to localhost:<port>
+```
+
+`customer_agents` (DynamoDB) is which agents a customer may open at all;
+`agent-spark/agents/<slug>/agent.yaml` (on the Spark box) is where that
+agent's one shared instance's wiki repo/port are declared. The admin grants
+the former in `/admin`; the admin declares the latter once per agent (not
+per customer).
+
+---
+
 ## 5. Auth model
 
 ### 5.1 Customer API keys
@@ -230,6 +277,12 @@ Terraform does **not** provision the DGX or Ollama. It provisions everything nee
 
 GSI: `customer_id-index`.
 
+**`customer_agents`** (agent-spark entitlements — see §4b)
+
+| PK | SK | Attributes |
+|----|----|------------|
+| `customer_id` | `agent_slug` | `enabled`, `updated_at` |
+
 ---
 
 ## 8. Repository layout
@@ -241,12 +294,17 @@ itah-industries-llc/
 ├── website/                 ← Next.js portfolio + portal (local; not deployed yet)
 │   ├── app/(marketing)/
 │   ├── app/login/
-│   ├── app/app/             ← chat + docs
-│   └── app/api/             ← auth + BFF
+│   ├── app/app/             ← chat + docs + agents
+│   └── app/api/             ← auth + BFF (incl. agents)
 ├── spark/                   ← DGX Spark / any Ollama host
 │   ├── pyproject.toml
-│   ├── src/spark_gateway/
+│   ├── src/spark_gateway/   ← routes/agents.py + services/agents.py
 │   └── scripts/
+├── agent-spark/             ← long-running crawl agents + Streamlit dashboards (§4b)
+│   ├── core/                ← shared agent_spark_core pattern
+│   └── agents/
+│       ├── cigna-mtsinai-negotiation/
+│       └── animal-rights-watch/
 └── infra/                   ← Terraform AWS control plane
     ├── *.tf
     └── lambda/authorizer/
@@ -263,6 +321,7 @@ itah-industries-llc/
 - Admin UI not published on the customer API domain.
 - Edge → origin hop can require a shared token.
 - IAM for Spark is scoped to specific tables/actions.
+- `AGENT_SPARK_GITHUB_TOKEN` (agent-spark wiki sync, §4b) is a fine-grained GitHub PAT scoped to the `itah-industries-wikis` org only, Contents: Read and write, nothing else — never a classic PAT with blanket `repo` access.
 - Live `matanitah.com` Pages cutover is intentional and separate from this codebase phase.
 
 ---
@@ -277,6 +336,9 @@ itah-industries-llc/
 | Invalid/disabled key | 401/403 | Rotate or re-enable in admin |
 | Bad portal password | 401 on `/login` | Reset via admin Portal login form |
 | Scope missing | 403 | Grant entitlement |
+| Agent not entitled | 403 on `/app/agents/[slug]` | Grant agent in admin `#agents` |
+| Agent dashboard token expired/invalid | 403 from spark-gateway direct-tunnel path | Portal re-requests a fresh token each load; retry |
+| No `agent.yaml` for an agent | 400 "no port declared" starting/opening the agent | Admin copies that agent's `agent.example.yaml` → `agent.yaml` on the Spark box |
 
 ---
 
@@ -303,3 +365,8 @@ itah-industries-llc/
 | API Gateway + DynamoDB + authorizer | `infra/` |
 | Authorizer (API key + portal token) | `infra/lambda/authorizer/` |
 | Marketing + portal Next.js app | `website/` |
+| Agent-spark pattern (crawl loop + dashboard) | `agent-spark/core/` (see §4b) |
+| Agent-spark agents | `agent-spark/agents/cigna-mtsinai-negotiation/`, `agent-spark/agents/animal-rights-watch/` |
+| Agent entitlement + dashboard proxy (spark-gateway) | `spark/src/spark_gateway/routes/agents.py`, `services/agents.py` |
+| Agent entitlement table (Terraform) | `infra/dynamodb.tf` (`customer_agents`) |
+| Portal agents pages + BFF | `website/app/app/agents/`, `website/app/api/agents/` |

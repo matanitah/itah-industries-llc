@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+uv.lock
+
+# Per-agent runtime data (declared per agent, see each agent's own .gitignore
+# too): the agent's config declaration, and its shared instance state.
+agent.yaml
+wiki/
+logs/

@@ -30,6 +30,7 @@ export default async function PortalLayout({
         <nav className={styles.nav}>
           <Link href="/app/chat">Chat</Link>
           <Link href="/app/docs">Documents</Link>
+          <Link href="/app/agents">Agents</Link>
         </nav>
         <div className={styles.actions}>
           <CapacityBadge />

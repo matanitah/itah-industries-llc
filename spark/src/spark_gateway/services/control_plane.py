@@ -20,6 +20,15 @@ SCOPES = (
     "docling:health",
 )
 
+# agent-spark agents customers can be entitled to. Keep in sync with the
+# directory names under agent-spark/agents/ (services/agents.py validates
+# against the actual filesystem at request time; this list is just what the
+# admin UI offers to grant).
+AGENT_SLUGS = (
+    "cigna-mtsinai-negotiation",
+    "animal-rights-watch",
+)
+
 _ph = PasswordHasher()
 
 
@@ -87,6 +96,7 @@ class ControlPlane:
         self.spark_status = self._dynamo.Table(settings.dynamodb_spark_status_table)
         self.portal_users = self._dynamo.Table(settings.dynamodb_portal_users_table)
         self.portal_invites = self._dynamo.Table(settings.dynamodb_portal_invites_table)
+        self.customer_agents = self._dynamo.Table(settings.dynamodb_customer_agents_table)
         self._ses = boto3.client("ses", region_name=settings.aws_region)
 
     # --- Spark capacity -------------------------------------------------
@@ -147,6 +157,8 @@ class ControlPlane:
                 self.delete_api_key(str(key["key_hash"]))
             for user in self.list_portal_users(customer_id=customer_id):
                 self.delete_portal_user(str(user["username"]))
+            for agent in self.list_customer_agents(customer_id):
+                self.delete_customer_agent(customer_id, str(agent["agent_slug"]))
         self.customers.delete_item(Key={"customer_id": customer_id})
 
     # --- Entitlements ---------------------------------------------------
@@ -188,6 +200,41 @@ class ControlPlane:
     def revoke_all_scopes(self, customer_id: str) -> None:
         for ent in self.list_entitlements(customer_id):
             self.delete_entitlement(customer_id, str(ent["scope"]))
+
+    # --- Agent-spark agent entitlements ----------------------------------
+
+    def set_customer_agent(self, customer_id: str, agent_slug: str, enabled: bool) -> dict[str, Any]:
+        if agent_slug not in AGENT_SLUGS:
+            raise ValueError(f"Unknown agent_slug: {agent_slug}")
+        item = {
+            "customer_id": customer_id.strip(),
+            "agent_slug": agent_slug.strip(),
+            "enabled": enabled,
+            "updated_at": _utcnow(),
+        }
+        self.customer_agents.put_item(Item=item)
+        return item
+
+    def list_customer_agents(self, customer_id: str | None = None) -> list[dict[str, Any]]:
+        if customer_id:
+            result = self.customer_agents.query(
+                KeyConditionExpression="customer_id = :cid",
+                ExpressionAttributeValues={":cid": customer_id.strip()},
+            )
+            return result.get("Items", [])
+        items = self.customer_agents.scan().get("Items", [])
+        return sorted(items, key=lambda a: (str(a.get("customer_id", "")), str(a.get("agent_slug", ""))))
+
+    def customer_has_agent(self, customer_id: str, agent_slug: str) -> bool:
+        item = self.customer_agents.get_item(
+            Key={"customer_id": customer_id.strip(), "agent_slug": agent_slug.strip()}
+        ).get("Item")
+        return bool(item and item.get("enabled", True))
+
+    def delete_customer_agent(self, customer_id: str, agent_slug: str) -> None:
+        self.customer_agents.delete_item(
+            Key={"customer_id": customer_id.strip(), "agent_slug": agent_slug.strip()}
+        )
 
     # --- API keys -------------------------------------------------------
 
@@ -391,36 +438,30 @@ class ControlPlane:
         api_keys = self.list_api_keys()
         portal_users = self.list_portal_users()
         portal_invites = self.list_portal_invites()
+        customer_agents = self.list_customer_agents()
+
+        def _blank() -> dict[str, Any]:
+            return {"entitlements": [], "api_keys": [], "portal_users": [], "agents": []}
+
         by_customer: dict[str, dict[str, Any]] = {}
         for c in customers:
             cid = str(c["customer_id"])
-            by_customer[cid] = {
-                "customer": c,
-                "entitlements": [],
-                "api_keys": [],
-                "portal_users": [],
-            }
+            by_customer[cid] = {"customer": c, **_blank()}
+
+        def _bucket(cid: str) -> dict[str, Any]:
+            return by_customer.setdefault(
+                cid, {"customer": {"customer_id": cid, "name": "?", "enabled": False}, **_blank()}
+            )
+
         for e in entitlements:
-            cid = str(e.get("customer_id", ""))
-            by_customer.setdefault(
-                cid,
-                {"customer": {"customer_id": cid, "name": "?", "enabled": False}, "entitlements": [], "api_keys": [], "portal_users": []},
-            )
-            by_customer[cid]["entitlements"].append(e)
+            _bucket(str(e.get("customer_id", "")))["entitlements"].append(e)
         for k in api_keys:
-            cid = str(k.get("customer_id", ""))
-            by_customer.setdefault(
-                cid,
-                {"customer": {"customer_id": cid, "name": "?", "enabled": False}, "entitlements": [], "api_keys": [], "portal_users": []},
-            )
-            by_customer[cid]["api_keys"].append(k)
+            _bucket(str(k.get("customer_id", "")))["api_keys"].append(k)
         for u in portal_users:
-            cid = str(u.get("customer_id", ""))
-            by_customer.setdefault(
-                cid,
-                {"customer": {"customer_id": cid, "name": "?", "enabled": False}, "entitlements": [], "api_keys": [], "portal_users": []},
-            )
-            by_customer[cid]["portal_users"].append(u)
+            _bucket(str(u.get("customer_id", "")))["portal_users"].append(u)
+        for a in customer_agents:
+            _bucket(str(a.get("customer_id", "")))["agents"].append(a)
+
         return {
             "status": self.get_spark_status(),
             "customers": customers,
@@ -428,6 +469,8 @@ class ControlPlane:
             "api_keys": api_keys,
             "portal_users": portal_users,
             "portal_invites": portal_invites,
+            "customer_agents": customer_agents,
             "by_customer": by_customer,
             "scopes": SCOPES,
+            "agent_slugs": AGENT_SLUGS,
         }

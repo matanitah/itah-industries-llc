@@ -81,6 +81,29 @@ resource "aws_dynamodb_table" "portal_users" {
   }
 }
 
+# Which agent-spark agents (Streamlit dashboard + background crawl loop,
+# see agent-spark/agents/*) a customer is entitled to open/run in the portal.
+# `agent_slug` is the directory name under agent-spark/agents/ (e.g.
+# "cigna-mtsinai-negotiation", "animal-rights-watch"); the actual per-customer
+# process/DB/wiki isolation is declared separately in that agent's own
+# instances.yaml on the Spark box (see agent-spark/core/README.md).
+resource "aws_dynamodb_table" "customer_agents" {
+  name         = local.tables.customer_agents
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "customer_id"
+  range_key    = "agent_slug"
+
+  attribute {
+    name = "customer_id"
+    type = "S"
+  }
+
+  attribute {
+    name = "agent_slug"
+    type = "S"
+  }
+}
+
 # Single-use 24h account-creation invites (token_hash PK; TTL on expires_epoch).
 resource "aws_dynamodb_table" "portal_invites" {
   name         = local.tables.portal_invites
