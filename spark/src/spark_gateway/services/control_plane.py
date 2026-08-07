@@ -27,6 +27,7 @@ SCOPES = (
 AGENT_SLUGS = (
     "cigna-mtsinai-negotiation",
     "animal-rights-watch",
+    "cigna-actuarial-agent",
 )
 
 _ph = PasswordHasher()
