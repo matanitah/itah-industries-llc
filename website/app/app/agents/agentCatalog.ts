@@ -24,6 +24,13 @@ export const AGENT_CATALOG: Record<string, AgentCatalogEntry> = {
       "Tracks systemic animal-rights violations and animal-cruelty case law across all 50 states.",
     icon: "🐾",
   },
+  "cigna-actuarial-agent": {
+    slug: "cigna-actuarial-agent",
+    name: "Cigna Actuarial Trend Agent",
+    description:
+      "Tracks drug pricing, hospital cost/utilization, and CMS regulatory changes, scoring their expected impact on Cigna's medical cost trend assumptions.",
+    icon: "📈",
+  },
 };
 
 export function catalogEntry(slug: string): AgentCatalogEntry {

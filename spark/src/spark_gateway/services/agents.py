@@ -48,7 +48,7 @@ from spark_gateway.config import Settings
 
 # Keep in sync with control_plane.AGENT_SLUGS (which is what the admin UI
 # offers to grant) -- this is what actually gets run when the portal opens one.
-AGENT_SLUGS = ("cigna-mtsinai-negotiation", "animal-rights-watch")
+AGENT_SLUGS = ("cigna-mtsinai-negotiation", "animal-rights-watch", "cigna-actuarial-agent")
 
 TOKEN_TTL_S = 300  # iframe re-requests a fresh token each portal page load
 
