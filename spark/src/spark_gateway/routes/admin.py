@@ -24,6 +24,7 @@ def _truthy(value: str) -> bool:
 def _admin_context(
     request: Request,
     *,
+    active_tab: str | None = None,
     created_key: str | None = None,
     created_portal_user: str | None = None,
     created_invite_url: str | None = None,
@@ -56,6 +57,7 @@ def _admin_context(
             pass
     return {
         **snapshot,
+        "active_tab": active_tab,
         "error": error,
         "flash": flash,
         "created_key": created_key,
@@ -151,8 +153,8 @@ async def delete_customer(
     try:
         _control_plane(request).delete_customer(customer_id, cascade=_truthy(cascade))
     except Exception as exc:  # noqa: BLE001
-        return _render(request, error=str(exc), status_code=400)
-    return _render(request, flash=f"Deleted customer {customer_id.strip()}")
+        return _render(request, active_tab="customers", error=str(exc), status_code=400)
+    return _render(request, active_tab="customers", flash=f"Deleted customer {customer_id.strip()}")
 
 
 @router.post("/customers/grant-all")
@@ -184,7 +186,7 @@ async def set_entitlement(
             enabled=_truthy(enabled),
         )
     except Exception as exc:  # noqa: BLE001
-        return _render(request, error=str(exc), status_code=400)
+        return _render(request, active_tab="entitlements", error=str(exc), status_code=400)
     return _redirect()
 
 
@@ -215,7 +217,7 @@ async def set_customer_agent(
             enabled=_truthy(enabled),
         )
     except Exception as exc:  # noqa: BLE001
-        return _render(request, error=str(exc), status_code=400)
+        return _render(request, active_tab="agents", error=str(exc), status_code=400)
     return _redirect()
 
 
@@ -242,7 +244,7 @@ async def create_key(
         customer_id=customer_id.strip(),
         label=label.strip(),
     )
-    return _render(request, created_key=raw)
+    return _render(request, active_tab="api-keys", created_key=raw)
 
 
 @router.post("/keys/enable")
@@ -282,8 +284,8 @@ async def create_portal_user(
             enabled=_truthy(enabled),
         )
     except Exception as exc:  # noqa: BLE001
-        return _render(request, error=str(exc), status_code=400)
-    return _render(request, created_portal_user=user["username"])
+        return _render(request, active_tab="users", error=str(exc), status_code=400)
+    return _render(request, active_tab="users", created_portal_user=user["username"])
 
 
 @router.post("/portal-users/enable")
@@ -329,9 +331,10 @@ async def create_invite(
             customer_id=customer_id.strip(),
         )
     except Exception as exc:  # noqa: BLE001
-        return _render(request, error=str(exc), status_code=400)
+        return _render(request, active_tab="invites", error=str(exc), status_code=400)
     return _render(
         request,
+        active_tab="invites",
         created_invite_url=result["invite_url"],
         created_invite_email=result["email"],
         invite_email_sent=bool(result.get("email_sent")),

@@ -32,15 +32,23 @@
     h1 { font-size: 1.65rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.25rem; }
     .sub { color: var(--muted); margin: 0 0 1.5rem; }
     .sub a { color: var(--accent); }
-    nav.jump {
-      display: flex; flex-wrap: wrap; gap: 0.65rem;
+    nav.tabs {
+      display: flex; flex-wrap: wrap; gap: 0.4rem;
       margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.6rem;
     }
-    nav.jump a {
-      color: var(--muted); text-decoration: none; font-size: 0.85rem;
-      border: 1px solid var(--border); border-radius: 999px; padding: 0.25rem 0.7rem;
+    nav.tabs button.tab {
+      background: transparent; color: var(--muted); font-weight: 500;
+      border: 1px solid transparent; border-radius: 999px;
+      padding: 0.35rem 0.85rem; font-size: 0.85rem; cursor: pointer; font-family: inherit;
     }
-    nav.jump a:hover { color: var(--accent); border-color: var(--accent); }
+    nav.tabs button.tab:hover { color: var(--text); border-color: var(--border); }
+    nav.tabs button.tab.active {
+      color: #04140f; background: var(--accent); font-weight: 600;
+    }
+    section.panel { display: none; }
+    section.panel.active { display: block; }
     section {
       background: color-mix(in srgb, var(--panel) 90%, transparent);
       border: 1px solid var(--border);
@@ -103,6 +111,12 @@
       justify-content: space-between; margin-bottom: 0.5rem;
     }
     .scope-list { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.35rem 0; }
+    .inline-editor {
+      display: none; gap: 0.4rem; align-items: center; margin-top: 0.35rem;
+    }
+    .inline-editor.open { display: flex; }
+    .inline-editor input { min-width: 160px; }
+    tr.user-row.editing-open td { border-bottom: 0; }
   </style>
 </head>
 <body>
@@ -113,15 +127,14 @@
       Portal: <a href="{{ portal_url }}" target="_blank" rel="noreferrer">{{ portal_url }}</a>
     </p>
 
-    <nav class="jump">
-      <a href="#capacity">Capacity</a>
-      <a href="#customers">Customers</a>
-      <a href="#invites">Invites</a>
-      <a href="#portal-users">Portal users</a>
-      <a href="#api-keys">API keys</a>
-      <a href="#entitlements">Entitlements</a>
-      <a href="#agents">Agents</a>
-      <a href="#create">Create</a>
+    <nav class="tabs" id="tabs">
+      <button type="button" class="tab" data-tab="capacity">Capacity</button>
+      <button type="button" class="tab" data-tab="customers">Customers</button>
+      <button type="button" class="tab" data-tab="invites">Invites</button>
+      <button type="button" class="tab" data-tab="users">Users</button>
+      <button type="button" class="tab" data-tab="api-keys">API keys</button>
+      <button type="button" class="tab" data-tab="entitlements">Entitlements</button>
+      <button type="button" class="tab" data-tab="agents">Agents</button>
     </nav>
 
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
@@ -142,7 +155,7 @@
     </div>
     {% endif %}
 
-    <section id="capacity">
+    <section class="panel" id="capacity" data-tab-panel="capacity">
       <h2>Capacity (Spark / GPU)</h2>
       <p>
         {% if status.online %}
@@ -170,7 +183,7 @@
       </div>
     </section>
 
-    <section id="customers">
+    <section class="panel" id="customers" data-tab-panel="customers">
       <h2>Customers &amp; per-customer control</h2>
       {% for cid, bundle in by_customer.items() %}
       {% set c = bundle.customer %}
@@ -230,9 +243,22 @@
       {% else %}
       <p class="muted">No customers yet.</p>
       {% endfor %}
+
+      <h3>Create / update customer</h3>
+      <form method="post" action="/admin/customers" class="row">
+        <label>Customer ID <input name="customer_id" required placeholder="acme" /></label>
+        <label>Name <input name="name" required placeholder="Acme Health" /></label>
+        <label>Enabled
+          <select name="enabled">
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <button type="submit">Create / update</button>
+      </form>
     </section>
 
-    <section id="invites">
+    <section class="panel" id="invites" data-tab-panel="invites">
       <h2>Portal invites (24h signup links)</h2>
       <p class="muted" style="margin-top: 0; font-size: 0.85rem;">
         Enter an email + customer. They open the link and choose username/password.
@@ -275,15 +301,41 @@
       </table>
     </section>
 
-    <section id="portal-users">
-      <h2>Portal users (username / password)</h2>
+    <section class="panel" id="users" data-tab-panel="users">
+      <h2>Users (username / password)</h2>
+      <p class="muted" style="margin-top: 0; font-size: 0.85rem;">
+        Create logins directly, or reset a username/password/customer assignment in place. Changes
+        here take effect immediately — the user does not need to confirm anything.
+      </p>
+
+      <h3>Create user</h3>
+      <form method="post" action="/admin/portal-users" class="row" style="margin-bottom: 1.25rem;">
+        <label>Username <input name="username" required placeholder="jane" /></label>
+        <label>Customer ID
+          <input name="customer_id" required placeholder="acme" list="customer-ids" />
+        </label>
+        <label>Password <input name="password" type="password" required minlength="8" /></label>
+        <label>Enabled
+          <select name="enabled">
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <button type="submit">Create user</button>
+      </form>
+      <datalist id="customer-ids">
+        {% for cid in by_customer.keys() %}
+        <option value="{{ cid }}"></option>
+        {% endfor %}
+      </datalist>
+
       <table>
         <thead>
           <tr><th>Username</th><th>Customer</th><th>Status</th><th>Created</th><th>Actions</th></tr>
         </thead>
         <tbody>
           {% for u in portal_users %}
-          <tr>
+          <tr class="user-row" id="user-row-{{ loop.index }}">
             <td class="mono">{{ u.username }}</td>
             <td class="mono">{{ u.customer_id }}</td>
             <td>{% if u.enabled %}<span class="pill on">enabled</span>{% else %}<span class="pill off">disabled</span>{% endif %}</td>
@@ -300,10 +352,28 @@
                 <button type="submit" class="small">Enable</button>
               </form>
               {% endif %}
+              <button type="button" class="ghost small" data-toggle-editor="user-editor-{{ loop.index }}">Set password ▾</button>
+              <button type="button" class="ghost small" data-toggle-editor="reassign-editor-{{ loop.index }}">Reassign ▾</button>
               <form method="post" action="/admin/portal-users/delete"
                 onsubmit="return confirm('Delete portal user {{ u.username }}?');">
                 <input type="hidden" name="username" value="{{ u.username }}" />
                 <button type="submit" class="danger small">Delete</button>
+              </form>
+            </td>
+          </tr>
+          <tr class="user-editor-row">
+            <td colspan="5" style="padding: 0 0.35rem;">
+              <form method="post" action="/admin/portal-users" class="inline-editor" id="user-editor-{{ loop.index }}">
+                <input type="hidden" name="username" value="{{ u.username }}" />
+                <input type="hidden" name="customer_id" value="{{ u.customer_id }}" />
+                <input type="hidden" name="enabled" value="{{ 'true' if u.enabled else 'false' }}" />
+                <input name="password" type="password" required minlength="8" placeholder="New password" autocomplete="new-password" />
+                <button type="submit" class="small">Save password</button>
+              </form>
+              <form method="post" action="/admin/portal-users/reassign" class="inline-editor" id="reassign-editor-{{ loop.index }}">
+                <input type="hidden" name="username" value="{{ u.username }}" />
+                <input name="customer_id" required placeholder="New customer ID" list="customer-ids" />
+                <button type="submit" class="small">Save customer</button>
               </form>
             </td>
           </tr>
@@ -312,16 +382,15 @@
           {% endfor %}
         </tbody>
       </table>
-      <h3>Reassign user → customer</h3>
-      <form method="post" action="/admin/portal-users/reassign" class="row">
-        <label>Username <input name="username" required /></label>
-        <label>New customer ID <input name="customer_id" required /></label>
-        <button type="submit">Reassign</button>
-      </form>
     </section>
 
-    <section id="api-keys">
+    <section class="panel" id="api-keys" data-tab-panel="api-keys">
       <h2>API keys (programmatic)</h2>
+      <form method="post" action="/admin/keys" class="row" style="margin-bottom: 1rem;">
+        <label>Customer ID <input name="customer_id" required list="customer-ids" /></label>
+        <label>Label <input name="label" placeholder="prod" /></label>
+        <button type="submit">Mint key</button>
+      </form>
       <table>
         <thead>
           <tr><th>Prefix</th><th>Customer</th><th>Label</th><th>Status</th><th>Created</th><th>Actions</th></tr>
@@ -360,8 +429,25 @@
       </table>
     </section>
 
-    <section id="entitlements">
+    <section class="panel" id="entitlements" data-tab-panel="entitlements">
       <h2>All entitlements</h2>
+      <form method="post" action="/admin/entitlements" class="row" style="margin-bottom: 1rem;">
+        <label>Customer ID <input name="customer_id" required list="customer-ids" /></label>
+        <label>Scope
+          <select name="scope">
+            {% for s in scopes %}
+            <option value="{{ s }}">{{ s }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Enabled
+          <select name="enabled">
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <button type="submit">Set scope</button>
+      </form>
       <table>
         <thead>
           <tr><th>Customer</th><th>Scope</th><th>Status</th><th>Actions</th></tr>
@@ -393,7 +479,7 @@
       </table>
     </section>
 
-    <section id="agents">
+    <section class="panel" id="agents" data-tab-panel="agents">
       <h2>All agent entitlements (agent-spark)</h2>
       <p class="muted" style="margin-top: 0; font-size: 0.85rem;">
         Which <span class="mono">agent-spark/agents/*</span> dashboards a customer may open/start/stop in the
@@ -401,6 +487,23 @@
         Start/Stop) -- its wiki repo/port are declared once in that agent's own
         <span class="mono">agent.yaml</span> on this box, not per customer.
       </p>
+      <form method="post" action="/admin/agents" class="row" style="margin-bottom: 1rem;">
+        <label>Customer ID <input name="customer_id" required list="customer-ids" /></label>
+        <label>Agent
+          <select name="agent_slug">
+            {% for slug in agent_slugs %}
+            <option value="{{ slug }}">{{ slug }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Enabled
+          <select name="enabled">
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <button type="submit">Grant agent</button>
+      </form>
       <table>
         <thead>
           <tr><th>Customer</th><th>Agent</th><th>Status</th><th>Actions</th></tr>
@@ -431,89 +534,66 @@
         </tbody>
       </table>
     </section>
-
-    <section id="create">
-      <h2>Create / reset</h2>
-
-      <h3>Customer</h3>
-      <form method="post" action="/admin/customers" class="row" style="margin-bottom: 1.25rem;">
-        <label>Customer ID <input name="customer_id" required placeholder="acme" /></label>
-        <label>Name <input name="name" required placeholder="Acme Health" /></label>
-        <label>Enabled
-          <select name="enabled">
-            <option value="true">true</option>
-            <option value="false">false</option>
-          </select>
-        </label>
-        <button type="submit">Create / update</button>
-      </form>
-
-      <h3>Entitlement</h3>
-      <form method="post" action="/admin/entitlements" class="row" style="margin-bottom: 1.25rem;">
-        <label>Customer ID <input name="customer_id" required /></label>
-        <label>Scope
-          <select name="scope">
-            {% for s in scopes %}
-            <option value="{{ s }}">{{ s }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>Enabled
-          <select name="enabled">
-            <option value="true">true</option>
-            <option value="false">false</option>
-          </select>
-        </label>
-        <button type="submit">Set scope</button>
-      </form>
-
-      <h3>Agent entitlement (agent-spark)</h3>
-      <form method="post" action="/admin/agents" class="row" style="margin-bottom: 1.25rem;">
-        <label>Customer ID <input name="customer_id" required /></label>
-        <label>Agent
-          <select name="agent_slug">
-            {% for slug in agent_slugs %}
-            <option value="{{ slug }}">{{ slug }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>Enabled
-          <select name="enabled">
-            <option value="true">true</option>
-            <option value="false">false</option>
-          </select>
-        </label>
-        <button type="submit">Grant agent</button>
-      </form>
-
-      <h3>API key</h3>
-      <form method="post" action="/admin/keys" class="row" style="margin-bottom: 1.25rem;">
-        <label>Customer ID <input name="customer_id" required /></label>
-        <label>Label <input name="label" placeholder="prod" /></label>
-        <button type="submit">Mint key</button>
-      </form>
-
-      <h3>Portal invite (email → 24h signup link)</h3>
-      <form method="post" action="/admin/invites" class="row" style="margin-bottom: 1.25rem;">
-        <label>Email <input name="email" type="email" required placeholder="user@company.com" /></label>
-        <label>Customer ID <input name="customer_id" required placeholder="acme" /></label>
-        <button type="submit">Create invite</button>
-      </form>
-
-      <h3>Portal user (create or reset password)</h3>
-      <form method="post" action="/admin/portal-users" class="row">
-        <label>Username <input name="username" required placeholder="admin" /></label>
-        <label>Customer ID <input name="customer_id" required placeholder="admin" /></label>
-        <label>Password <input name="password" type="password" required /></label>
-        <label>Enabled
-          <select name="enabled">
-            <option value="true">true</option>
-            <option value="false">false</option>
-          </select>
-        </label>
-        <button type="submit">Create / reset password</button>
-      </form>
-    </section>
   </main>
+
+  <script>
+    (function () {
+      var TABS_KEY = "itah-admin-active-tab";
+      var tabs = document.querySelectorAll("nav.tabs button.tab");
+      var panels = document.querySelectorAll("section.panel");
+
+      function activate(name) {
+        tabs.forEach(function (btn) {
+          btn.classList.toggle("active", btn.dataset.tab === name);
+        });
+        panels.forEach(function (panel) {
+          panel.classList.toggle("active", panel.dataset.tabPanel === name);
+        });
+        try { sessionStorage.setItem(TABS_KEY, name); } catch (e) {}
+        if (history.replaceState) {
+          history.replaceState(null, "", "#" + name);
+        }
+      }
+
+      tabs.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          activate(btn.dataset.tab);
+        });
+      });
+
+      var initial = {{ active_tab|tojson }} || (window.location.hash || "").replace("#", "");
+      if (!initial) {
+        try { initial = sessionStorage.getItem(TABS_KEY) || ""; } catch (e) {}
+      }
+      var validNames = Array.prototype.map.call(tabs, function (b) { return b.dataset.tab; });
+      if (!initial || validNames.indexOf(initial) === -1) {
+        initial = validNames[0];
+      }
+      activate(initial);
+
+      // Inline row editors (set password / reassign) toggle open on demand
+      // and close themselves once submitted or reopened elsewhere.
+      document.querySelectorAll("[data-toggle-editor]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var target = document.getElementById(btn.dataset.toggleEditor);
+          if (!target) return;
+          var wasOpen = target.classList.contains("open");
+          // Close any other open editor in the same row group first.
+          var row = btn.closest("tr");
+          var editorRow = row ? row.nextElementSibling : null;
+          if (editorRow) {
+            editorRow.querySelectorAll(".inline-editor.open").forEach(function (el) {
+              if (el !== target) el.classList.remove("open");
+            });
+          }
+          target.classList.toggle("open", !wasOpen);
+          if (!wasOpen) {
+            var input = target.querySelector("input:not([type=hidden])");
+            if (input) input.focus();
+          }
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
